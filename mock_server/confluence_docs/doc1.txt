@@ -1,0 +1,11 @@
+# ParserService Errors
+
+If the ParserService shows red in Grafana, common reasons include:
+- NullPointerExceptions during parsing
+- File format mismatches
+- Large file timeout issues
+
+Solutions:
+- Check input file format
+- Increase timeout settings
+- Restart the parser microservice if necessary

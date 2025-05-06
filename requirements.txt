@@ -1,0 +1,8 @@
+# This file is used to install the required packages for the project
+fastapi
+uvicorn
+openai
+requests>=2.20.0
+pyyaml>=6.0
+python-dotenv
+docker>=6.0.0

@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  splunk:
+    image: splunk/splunk:latest
+    container_name: splunk
+    ports:
+      - "8000:8000"   # Web interface
+      - "8088:8088"   # HTTP Event Collector
+      - "8089:8089"   # Management API (important!)
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_PASSWORD=Dummy@splunk
+      - SPLUNK_ENABLE_LISTEN=8089
+      - SPLUNKD_PORT=8089
+    volumes:
+      - splunk-data:/opt/splunk/var
+
+volumes:
+  splunk-data:
