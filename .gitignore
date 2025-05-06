@@ -1,0 +1,41 @@
+```plaintext
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+
+# Logs and Debugging
+*.log
+*.out
+*.err
+*.trace
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Config Files
+*.env
+*.yaml.local
+*.json.local
+```
