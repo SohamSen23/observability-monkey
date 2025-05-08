@@ -93,37 +93,42 @@ def extract_matching_logs_from_splunk(queryKeywords, time_range="24h"):
     matching_logs = []
 
     try:
-        for term in search_terms:
-            # Create a search job for each term
-            search_query = f'search sourcetype="java_errors" "{term}" earliest=-{time_range}'
-            search_params = {"search": search_query, "output_mode": "json", "exec_mode": "normal"}
-            job_response = session.post(search_url, data=search_params)
-            job_response.raise_for_status()
-            sid = job_response.json()["sid"]
+        # Combine search terms into a single query
+        search_query = f'search sourcetype="splunk_logs" ({" AND ".join(search_terms)}) level=ERROR | sort -_time | head 1'
+        print('Search query:', search_query)
+        search_params = {"search": search_query, "output_mode": "json", "exec_mode": "normal"}
+        job_response = session.post(search_url, data=search_params)
+        job_response.raise_for_status()
+        sid = job_response.json()["sid"]
 
-            # Wait for search to complete
-            wait_for_splunk_job(session, search_url, sid)
+        # Wait for search to complete
+        wait_for_splunk_job(session, search_url, sid)
 
-            # Get results
-            results_url = f"{search_url}/{sid}/results"
-            results_response = session.get(results_url, params={"output_mode": "json", "count": 50})
-            results = results_response.json()
+        # Get results
+        results_url = f"{search_url}/{sid}/results"
+        results_response = session.get(results_url, params={"output_mode": "json", "count": 50})
+        results = results_response.json()
 
-            # Process results
-            for result in results.get("results", []):
-                if "_raw" in result:
-                    matching_logs.append(result["_raw"])
+        # Process results
+        for result in results.get("results", []):
+            if "_raw" in result:
+                matching_logs.append(result["_raw"])
 
-        # Extract keywords from matching logs
-        stopwords = {"at", "the", "to", "in", "all", "and", "due", "file", "while", "for", "from", "with", "large"}
-        keywords = [
-            word
-            for line in matching_logs
-            for word in re.findall(r"[A-Za-z]+", line)
-            if word.lower() not in stopwords and len(word) > 3
-        ]
+        print("Matching logs:", matching_logs)
 
-        return list(set(keywords))
+        # Extract fields from matching logs
+        extracted_fields = []
+
+        for line in matching_logs:
+            # Extract important fields
+            fields = {}
+            fields["service"] = re.search(r'service=(\w+)', line).group(1) if re.search(r'service=(\w+)',
+                                                                                        line) else None
+            fields["error_code"] = re.search(r'error_code=(\w+)', line).group(1) if re.search(r'error_code=(\w+)',
+                                                                                              line) else None
+            extracted_fields.append(fields)
+
+        return extracted_fields
 
     except requests.exceptions.RequestException as e:
         print(f"Error querying Splunk: {e}")
@@ -143,6 +148,7 @@ def query_confluence_for_keywords(keywords):
     headers = {"Accept": "application/json"}
     auth = (CONFLUENCE_EMAIL, confluence_token)
     context_snippets = []
+    print("\nConfluence keywords:\n", keywords)
 
     for keyword in keywords:
         url = f"{CONFLUENCE_BASE_URL}/content/search?cql=text~\"{keyword}\"&expand=body.storage"
@@ -182,7 +188,9 @@ Context:
 User Query:
 {user_prompt}
 
-Please provide a concise and accurate answer based on the context provided above. If you don't find relevant information, say "I don't know" or "No relevant information found."
+Based on the provided context, identify relevant documentation that includes clear steps for resolving the issue.
+Present these steps in a simple and easy-to-follow manner, suitable for someone without technical expertise.
+If no relevant information is found, respond with "I don't know" or "No relevant information available."
 """
     prompt = prompt_template.format(
         context_snippets="\n".join(context_snippets),
@@ -213,15 +221,15 @@ def extract_keywords_with_llm(user_query):
 You are a helpful assistant. Extract the following structured information from the user's query:
 
 - service names (like checkout-service, mandate, etc.)
-- error types or exceptions (like NullPointerException, 500 error, etc.)
-- UUIDs or event IDs
+- error types or exceptions (like NullPointerException or HTTP errors only)
+- correlation_id which contains the string 'err'
 - relevant API endpoints or identifiers
 
 Return your answer in this format:
 {{
   "services": [...],
   "errors": [...],
-  "uuids": [...],
+  "correlation_id": [...],
   "endpoints": [...]
 }}
 

@@ -18,11 +18,6 @@ TOKEN_NAME = "observability-monkey"
 SPLUNK_HEALTH_ENDPOINT = f"{SPLUNK_URL}/services/server/info"
 
 
-def start_splunk_container():
-    print("Starting Splunk container using Docker Compose...")
-    subprocess.run(["docker-compose", "-f", "./docker/docker-compose.yml", "up", "-d"], check=True)
-    wait_for_splunk()
-
 
 def wait_for_splunk(timeout=120, interval=5):
     print("Waiting for Splunk to be ready...")

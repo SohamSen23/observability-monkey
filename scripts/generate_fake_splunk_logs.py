@@ -2,7 +2,11 @@ import requests
 import random
 import json
 import time
-from splunk_utils import create_splunk_token, start_splunk_container
+import re  # Fixed missing import
+from splunk_utils import create_splunk_token
+from start_splunk_container import start_splunk_container
+
+# Other existing code in splunk_utils.py
 
 
 def generate_fake_logs(splunk_token, splunk_url):
@@ -38,6 +42,7 @@ def generate_fake_logs(splunk_token, splunk_url):
             """level=ERROR service=parser host=parser-03 environment=production event="NullPointerException while processing record batch" exception=NullPointerException file=records_batch.csv correlation_id=err003""",
             """level=ERROR service=parser host=parser-02 environment=production event="Database write failed due to constraint violation on 'order_id'" constraint=unique_order_id file=orders_2025_05_06.csv correlation_id=err004""",
             """level=ERROR service=parser host=parser-01 environment=production event="Job crashed unexpectedly. Stacktrace captured." job_name=daily_parser_sync error_code=UNCAUGHT_EXCEPTION correlation_id=err005""",
+            """level=ERROR service=parser host=parser-01 environment=production event="DB Connection timed out" job_name=daily_parser_sync error_code=DB_CONNECTION_TIMEOUT correlation_id=err006""",
             """level=INFO service=MandateService host=mandate-01 environment=production event="Started processing mandate file mandates_2025_05_06.csv" status=started file=mandates_2025_05_06.csv correlation_id=mand001""",
             """level=INFO service=MandateService host=mandate-01 environment=production event="File header validated successfully" file=mandates_2025_05_06.csv header_row=true correlation_id=mand001""",
             """level=INFO service=MandateService host=mandate-01 environment=production event="Parsed 1200 records" file=mandates_2025_05_06.csv records_processed=1200 correlation_id=mand001""",
@@ -49,41 +54,40 @@ def generate_fake_logs(splunk_token, splunk_url):
             """level=ERROR service=MandateService host=mandate-03 environment=production event="Database write failed due to constraint violation on 'mandate_id'" constraint=unique_mandate_id file=mandates_2025_05_06.csv correlation_id=err002"""
         ]
     ]
-for i in range(1000):
-    raw_log = random.choice(splunk_logs)[random.randint(0, len(splunk_logs[0]) - 1)]  # randomly pick a log string
-    level_match = re.search(r'level=(\w+)', raw_log)
-    log_level = level_match.group(1) if level_match else "UNKNOWN"
+    for i in range(1000):
+        raw_log = random.choice(random.choice(splunk_logs))
+        level_match = re.search(r'level=(\w+)', raw_log)
+        log_level = level_match.group(1) if level_match else "UNKNOWN"
 
-    log_event = {
-        "event": {
-            "level": log_level,
-            "error": raw_log,
-            "logger": f"com.example.module{random.randint(1, 5)}",
-            "thread": f"Thread-{random.randint(1, 20)}",
-            "timestamp": int(time.time())
-        },
-        "sourcetype": "splunk_logs"
-    }
+        log_event = {
+            "event": {
+                "level": log_level,
+                "error": raw_log,
+                "logger": f"com.example.module{random.randint(1, 5)}",
+                "thread": f"Thread-{random.randint(1, 20)}",
+                "timestamp": int(time.time())
+            },
+            "sourcetype": "splunk_logs"
+        }
 
+        try:
+            response = requests.post(
+                splunk_url,
+                headers=headers,
+                data=json.dumps(log_event),
+                verify=False,
+                timeout=10
+            )
 
-    try:
-        response = requests.post(
-            splunk_url,
-            headers=headers,
-            data=json.dumps(log_event),
-            verify=False,
-            timeout=10
-        )
+            if response.status_code != 200:
+                print(f"Failed to send event {i}: {response.text}")
+            else:
+                print(f"[{i + 1}/1000] Event sent")
 
-        if response.status_code != 200:
-            print(f"Failed to send event {i}: {response.text}")
-        else:
-            print(f"[{i + 1}/1000] Event sent")
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to send event {i}: {e}")
 
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to send event {i}: {e}")
-
-    time.sleep(0.01)  # Slight delay to avoid burst overload
+        time.sleep(0.01)  # Slight delay to avoid burst overload
 
 
 def main():
