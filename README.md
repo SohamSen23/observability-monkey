@@ -66,17 +66,12 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Run the Mock Server (in a new terminal)
+### 4. Install Docker (Required for Splunk)
 ```bash
-python mock_server/mock_server.py
+brew install docker-compose
 ```
 
-### 5. Start the AI Query Application
-```bash
-python app/query_app.py
-```
-
-### 6. Environment Variables
+### 5. Environment Variables
 ```
 # Mac/Linux
 export OPENAI_API_KEY="your-api-key-here"
@@ -84,20 +79,20 @@ export OPENAI_API_KEY="your-api-key-here"
 # Windows (Powershell)
 $env:OPENAI_API_KEY="your-api-key-here"
 ```
-## Local splunk Setup with dummy logs
-### 1. Install Docker
+## Running the Application Locally
+### 1. Start the Streamlit Application
 ```bash
-brew install docker-compose
+streamlit run streamlit_app.py
 ```
-### 2. Generate Fake Logs
-Simply run the script to automatically:
-- Start the Splunk container
-- Create/retrieve a token
-- Generate and send fake logs
-```bash
-python scripts/generate_fake_splunk_logs.py
-```
-## 3. Access Splunk on browser (Optional)
+###  2. What Happens Under the Hood?
+- The app automatically starts a Docker container for Splunk.
+- Dummy logs are generated and loaded into the Splunk instance via the scripts/generate_fake_splunk_logs.py script.
+- The Streamlit app runs on http://localhost:8501 and is ready to use.
+
+### 3. Stopping the Application
+When the app is stopped, a cleanup script (stop_dependencies.py) is executed to stop the Splunk container and clean up resources.
+
+## Access Splunk on browser (Optional)
 - Open your browser and go to `http://localhost:8000`
 - Login with default credentials:
   - Username: `admin`

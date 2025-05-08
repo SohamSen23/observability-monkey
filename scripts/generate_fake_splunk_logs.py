@@ -4,9 +4,6 @@ import json
 import time
 import re  # Fixed missing import
 from splunk_utils import create_splunk_token
-from start_splunk_container import start_splunk_container
-
-# Other existing code in splunk_utils.py
 
 
 def generate_fake_logs(splunk_token, splunk_url):
@@ -92,7 +89,6 @@ def generate_fake_logs(splunk_token, splunk_url):
 
 def main():
     print("Generating fake logs for Splunk...")
-    start_splunk_container()
     splunk_token = create_splunk_token()
     print("Splunk token created:", splunk_token)
 

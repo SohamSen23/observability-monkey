@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import sys
@@ -15,6 +16,9 @@ from splunk_utils import SPLUNK_USERNAME, SPLUNK_PASSWORD
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # Load configuration
 with open("config/config.yaml", "r") as f:
@@ -40,20 +44,13 @@ if not confluence_token:
 
 client = OpenAI(api_key=api_key)
 
-CONFLUENCE_BASE_URL = "https://observability-monkey.atlassian.net/wiki/rest/api"
-CONFLUENCE_EMAIL = "soham.sen@thoughtworks.com"
-
-
 def setup_splunk_session():
-    """Set up a Splunk session with authentication."""
     session = requests.Session()
     session.auth = (SPLUNK_USERNAME, SPLUNK_PASSWORD)
     session.verify = False
     return session
 
-
 def wait_for_splunk_job(session, search_url, sid):
-    """Wait for a Splunk search job to complete."""
     while True:
         status_url = f"{search_url}/{sid}"
         status_response = session.get(status_url, params={"output_mode": "json"})
@@ -62,30 +59,15 @@ def wait_for_splunk_job(session, search_url, sid):
             break
         time.sleep(1)
 
-
-def extract_matching_logs_from_splunk(queryKeywords, time_range="24h"):
-    """
-    Query logs from Splunk using structured keywords.
-
-    Args:
-        queryKeywords (dict): Structured keywords (e.g., services, errors, etc.)
-        time_range (str): Time range for the search (default: 24h)
-
-    Returns:
-        list: Unique keywords extracted from matching logs
-    """
-    print(f"Searching Splunk for logs using keywords: {queryKeywords}...")
-
-    # Parse queryKeywords if it's a JSON string
+def extract_matching_logs_from_splunk(queryKeywords):
     if isinstance(queryKeywords, str):
         queryKeywords = json.loads(queryKeywords)
 
-    # Extract search terms from the structured keywords
     search_terms = (
-            queryKeywords.get("services", [])
-            + queryKeywords.get("errors", [])
-            + queryKeywords.get("uuids", [])
-            + queryKeywords.get("endpoints", [])
+        queryKeywords.get("services", [])
+        + queryKeywords.get("errors", [])
+        + queryKeywords.get("uuids", [])
+        + queryKeywords.get("endpoints", [])
     )
 
     session = setup_splunk_session()
@@ -93,66 +75,43 @@ def extract_matching_logs_from_splunk(queryKeywords, time_range="24h"):
     matching_logs = []
 
     try:
-        # Combine search terms into a single query
         search_query = f'search sourcetype="splunk_logs" ({" AND ".join(search_terms)}) level=ERROR | sort -_time | head 1'
-        print('Search query:', search_query)
+        logging.info('Splunk Search Query:', search_query)
         search_params = {"search": search_query, "output_mode": "json", "exec_mode": "normal"}
         job_response = session.post(search_url, data=search_params)
         job_response.raise_for_status()
         sid = job_response.json()["sid"]
 
-        # Wait for search to complete
         wait_for_splunk_job(session, search_url, sid)
 
-        # Get results
         results_url = f"{search_url}/{sid}/results"
         results_response = session.get(results_url, params={"output_mode": "json", "count": 50})
         results = results_response.json()
 
-        # Process results
         for result in results.get("results", []):
             if "_raw" in result:
                 matching_logs.append(result["_raw"])
 
-        print("Matching logs:", matching_logs)
-
-        # Extract fields from matching logs
         extracted_fields = []
-
         for line in matching_logs:
-            # Extract important fields
             fields = {}
-            fields["service"] = re.search(r'service=(\w+)', line).group(1) if re.search(r'service=(\w+)',
-                                                                                        line) else None
-            fields["error_code"] = re.search(r'error_code=(\w+)', line).group(1) if re.search(r'error_code=(\w+)',
-                                                                                              line) else None
+            fields["service"] = re.search(r'service=(\w+)', line).group(1) if re.search(r'service=(\w+)', line) else None
+            fields["error_code"] = re.search(r'error_code=(\w+)', line).group(1) if re.search(r'error_code=(\w+)', line) else None
             extracted_fields.append(fields)
 
         return extracted_fields
 
     except requests.exceptions.RequestException as e:
-        print(f"Error querying Splunk: {e}")
+        logging.error(f"Error querying Splunk: {e}")
         return []
 
-
 def query_confluence_for_keywords(keywords):
-    """
-    Query Confluence for pages matching the given keywords.
-
-    Args:
-        keywords (list): List of keywords to search for.
-
-    Returns:
-        list: Context snippets from Confluence pages.
-    """
     headers = {"Accept": "application/json"}
     auth = (CONFLUENCE_EMAIL, confluence_token)
     context_snippets = []
-    print("\nConfluence keywords:\n", keywords)
 
     for keyword in keywords:
         url = f"{CONFLUENCE_BASE_URL}/content/search?cql=text~\"{keyword}\"&expand=body.storage"
-        print("\nHitting Confluence")
         response = requests.get(url, headers=headers, auth=auth)
 
         if response.status_code == 200:
@@ -163,37 +122,27 @@ def query_confluence_for_keywords(keywords):
                 snippet = re.sub('<[^<]+?>', '', body_html).strip().replace("\n", " ")[:1000]
                 context_snippets.append(f"{title}: {snippet}")
         else:
-            print(f"Error: Received status code {response.status_code} with response: {response.text}")
+            logging.error(f"Error: Received status code {response.status_code} with response: {response.text}")
 
     return context_snippets
 
-
-def generate_response(user_prompt, context_snippets):
-    """
-    Generate a response using OpenAI based on the user prompt and context snippets.
-
-    Args:
-        user_prompt (str): The user's query.
-        context_snippets (list): Context snippets from Confluence.
-
-    Returns:
-        str: AI-generated response.
-    """
+def generate_response(user_prompt, confluence_snippets):
     prompt_template = """
 You are a helpful assistant that uses Confluence data to answer user questions.
 
-Context:
-{context_snippets}
+Confluence Snippets:
+{confluence_snippets}
 
 User Query:
 {user_prompt}
 
-Based on the provided context, identify relevant documentation that includes clear steps for resolving the issue.
+Based on the provided documentation context, identify relevant information that narrates clear steps for resolving the issue.
 Present these steps in a simple and easy-to-follow manner, suitable for someone without technical expertise.
+Ensure you share all steps mentioned in the Confluence snippets.
 If no relevant information is found, respond with "I don't know" or "No relevant information available."
 """
     prompt = prompt_template.format(
-        context_snippets="\n".join(context_snippets),
+        context_snippets="\n".join(confluence_snippets),
         user_prompt=user_prompt
     )
 
@@ -206,17 +155,7 @@ If no relevant information is found, respond with "I don't know" or "No relevant
     )
     return response.choices[0].message.content
 
-
 def extract_keywords_with_llm(user_query):
-    """
-    Extract structured information from the user's query using OpenAI.
-
-    Args:
-        user_query (str): The user's query.
-
-    Returns:
-        dict: Structured information (services, errors, etc.).
-    """
     prompt = f"""
 You are a helpful assistant. Extract the following structured information from the user's query:
 
@@ -244,23 +183,26 @@ User query: "{user_query}"
     )
     return response.choices[0].message.content
 
+def process_user_query(user_query):
+    queryKeywords = extract_keywords_with_llm(user_query)
+    logging.info('Extracted Query Keywords:', queryKeywords)
+    splunk_keywords = extract_matching_logs_from_splunk(queryKeywords)
+    logging.info('Extracted Splunk Keywords:', splunk_keywords)
+    confluence_snippets = query_confluence_for_keywords(splunk_keywords)
+    logging.info('Confluence Snippets:', confluence_snippets)
+    return generate_response(user_query, confluence_snippets)
 
 def main():
-    user_query = input("Enter your question: ")
-    queryKeywords = extract_keywords_with_llm(user_query)
-
-    splunk_keywords = extract_matching_logs_from_splunk(queryKeywords)
-    print("\nMatching Logs from Splunk:\n", splunk_keywords)
-
-    confluence_snippets = query_confluence_for_keywords(splunk_keywords)
-    print("\nConfluence Snippets:")
-    for snippet in confluence_snippets:
-        print(f"- {snippet[:100]}...")
-
-    final_answer = generate_response(user_query, confluence_snippets)
-    print("\n--- AI Response ---\n")
-    print(final_answer)
-
+    if len(sys.argv) > 1:
+        user_query = sys.argv[1]
+        response = process_user_query(user_query)
+        return response
+    else:
+        user_query = input("Enter your question: ")
+        response = process_user_query(user_query)
+        return response
 
 if __name__ == "__main__":
-    main()
+    result = main()
+    if result:
+        print(result)  # Only print if running standalone

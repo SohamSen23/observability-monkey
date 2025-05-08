@@ -1,4 +1,0 @@
-2025-04-28 10:00:01 ERROR ParserService - Failed to parse incoming file - NullPointerException at Parser.java:45
-2025-04-28 10:00:45 WARN UploadService - Upload delayed due to network instability.
-2025-04-28 10:01:12 ERROR ParserService - Timeout while parsing large file.
-2025-04-28 10:03:33 INFO HealthCheck - All services healthy.
