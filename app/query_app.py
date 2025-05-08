@@ -142,7 +142,7 @@ Ensure you share all steps mentioned in the Confluence snippets.
 If no relevant information is found, respond with "I don't know" or "No relevant information available."
 """
     prompt = prompt_template.format(
-        context_snippets="\n".join(confluence_snippets),
+        confluence_snippets="\n".join(confluence_snippets),
         user_prompt=user_prompt
     )
 
