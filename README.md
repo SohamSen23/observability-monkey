@@ -78,7 +78,7 @@ gcloud auth application-default login
 
 #### 3. Fetch Secrets
 ```bash
-python fetch_secrets.py
+python secrets/fetch_secrets.py
 ```
 
 ```
