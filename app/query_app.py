@@ -66,7 +66,7 @@ def extract_matching_logs_from_splunk(queryKeywords):
     search_terms = (
         queryKeywords.get("services", [])
         + queryKeywords.get("errors", [])
-        + queryKeywords.get("uuids", [])
+        + queryKeywords.get("correlation_id", [])
         + queryKeywords.get("endpoints", [])
     )
 
