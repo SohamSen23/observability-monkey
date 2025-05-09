@@ -85,7 +85,7 @@ python secrets/fetch_secrets.py
 ## Running the Application Locally
 ### 1. Start the Streamlit Application
 ```bash
-streamlit run streamlit_app.py
+streamlit run frontend/streamlit_app.py
 ```
 ###  2. What Happens Under the Hood?
 - The app automatically starts a Docker container for Splunk.
