@@ -8,11 +8,6 @@ It fetches information from Splunk logs and Confluence documents to answer user 
 - Uses GPT-3.5-Turbo to generate final answers
 - Lightweight, easy to run locally
 
-## Prerequisites
-
-- Python 3.13 installed (minimum 3.11+ is fine if 3.13 is not available).
-- OpenAI API Key (set as environment variable `OPENAI_API_KEY`).
-
 ---
 
 ## Setup Instructions
@@ -72,12 +67,20 @@ brew install docker-compose
 ```
 
 ### 5. Environment Variables
+#### 1. Install Google Cloud SDK (Needed for fetching API keys)
+```bash
+brew install --cask google-cloud-sdk
 ```
-# Mac/Linux
-export OPENAI_API_KEY="your-api-key-here"
+#### 2. Use your TW mail id to authenticate:
+```bash
+gcloud auth application-default login
+```
 
-# Windows (Powershell)
-$env:OPENAI_API_KEY="your-api-key-here"
+#### 3. Fetch Secrets
+```bash
+python fetch_secrets.py
+```
+
 ```
 ## Running the Application Locally
 ### 1. Start the Streamlit Application
