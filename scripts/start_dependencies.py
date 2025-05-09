@@ -1,4 +1,11 @@
-import subprocess
+import sys
+import os
+import subprocess  # Missing import
+
+# First add the scripts directory to Python path
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+# Then import from splunk_utils
 from splunk_utils import wait_for_splunk
 
 def start_dependencies():
