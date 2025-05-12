@@ -2,6 +2,7 @@ import sys
 import os
 import streamlit as st
 import atexit
+from PIL import Image
 
 # Add the root directory to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -10,7 +11,7 @@ from scripts.start_dependencies import start_dependencies
 from scripts.stop_dependencies import stop_splunk_container
 from app.query_app import process_user_query
 
-# Set page configuration (must be the first Streamlit command)
+# Set page configuration
 st.set_page_config(page_title="Observability Monkey Chat", layout="wide")
 
 # Ensure stop_dependencies is called when the app stops
@@ -22,26 +23,38 @@ if "dependencies_started" not in st.session_state:
         start_dependencies()
     st.session_state.dependencies_started = True
 
-st.title("🧠 Observability Monkey Chat Assistant")
+# Load and display logo in the header
+logo_path = "assets/logo.png"  # Adjust if needed
+if os.path.exists(logo_path):
+    logo = Image.open(logo_path)
+    col1, col2 = st.columns([1, 10])
+    with col1:
+        st.image(logo, width=60)
+    with col2:
+        st.markdown("## Observability Monkey Chat Assistant")
+else:
+    st.markdown("## Observability Monkey Chat Assistant")  # Fallback if logo is missing
 
+# Initialize chat history
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# Chat input
-user_input = st.text_input("Enter your question:", key="input")
+# Display previous chat messages
+for sender, message in st.session_state.history:
+    with st.chat_message(sender):
+        st.markdown(message)
 
-if st.button("Send") and user_input:
-    # Clear previous chat history
-    st.session_state.history = []
+# Chat input box (sends on Enter)
+user_input = st.chat_input("Enter your question:")
 
-    # Append to chat history
+if user_input:
+    # Append user message
     st.session_state.history.append(("user", user_input))
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
-    # Call the backend logic directly
+    # Get bot response
     response = process_user_query(user_input)
     st.session_state.history.append(("bot", response))
-
-# Display chat history
-for sender, message in st.session_state.history:
-    align = "left" if sender == "bot" else "right"
-    st.markdown(f"<div style='text-align: {align}; padding: 4px 0;'>{message}</div>", unsafe_allow_html=True)
+    with st.chat_message("bot"):
+        st.markdown(response)
