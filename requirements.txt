@@ -8,3 +8,4 @@ python-dotenv
 docker>=6.0.0
 streamlit
 google-cloud-secret-manager
+playwright

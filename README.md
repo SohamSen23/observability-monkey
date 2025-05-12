@@ -81,7 +81,7 @@ gcloud auth application-default login
 python secrets/fetch_secrets.py
 ```
 
-```
+
 ## Running the Application Locally
 ### 1. Start the Streamlit Application
 ```bash
@@ -95,7 +95,7 @@ streamlit run frontend/streamlit_app.py
 ### 3. Stopping the Application
 When the app is stopped, a cleanup script (stop_dependencies.py) is executed to stop the Splunk container and clean up resources.
 
-## Access Splunk on browser (Optional)
+### 4. Access Splunk on browser (Optional)
 - Open your browser and go to `http://localhost:8000`
 - Login with default credentials:
   - Username: `admin`
@@ -110,7 +110,7 @@ No vector database is used — simple file reading and matching is sufficient fo
 If we want to extend it later for more scale or semantic search, we can add a vector DB like FAISS or Chroma.
 
 -----
-### Automate UI Testing setup using Playwright 
+## Automate UI Testing setup using Playwright 
 Using Playwright with python, automated the UI workflow where user can enter one/many prompt in input json file for data driven testing
 and the script will pick up the generated response in json file against the user query
 
@@ -120,14 +120,7 @@ Where we can use this script?
 - UI Smoke Testing: Quickly check if the main UI flow is working.
 - Prompt Engineering QA: Test how various prompts affect the AI’s output.
 
-###env setup
-```bash
-source venv/bin/activate
-pip show playwright
-source venv/bin/activate
-python3 -m pip install playwright
-```
-
 ### Run test
 ```bash 
-python3 test/functionalTest.py
+python test/functional_test.py
+```
