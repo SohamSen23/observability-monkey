@@ -108,3 +108,26 @@ This project uses mock Splunk logs and mock Confluence documents for testing.
 This is a lightweight Retrieval-Augmented Generation (RAG) solution.
 No vector database is used — simple file reading and matching is sufficient for the current use case.
 If we want to extend it later for more scale or semantic search, we can add a vector DB like FAISS or Chroma.
+
+-----
+### Automate UI Testing setup using Playwright 
+Using Playwright with python, automated the UI workflow where user can enter one/many prompt in input json file for data driven testing
+and the script will pick up the generated response in json file against the user query
+
+Where we can use this script?
+- Data-driven Testing: Run multiple test cases using prompts from a JSON file.
+- Regression Monitoring: Track changes in system responses over time.
+- UI Smoke Testing: Quickly check if the main UI flow is working.
+- Prompt Engineering QA: Test how various prompts affect the AI’s output.
+
+###env setup
+```bash
+source venv/bin/activate
+pip show playwright
+source venv/bin/activate
+python3 -m pip install playwright
+```
+
+### Run test
+```bash 
+python3 test/functionalTest.py
