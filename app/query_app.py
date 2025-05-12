@@ -190,6 +190,13 @@ User query: "{user_query}"
 def process_user_query(user_query):
     queryKeywords = extract_keywords_with_llm(user_query)
     logging.info('Extracted Query Keywords:  %s', queryKeywords)
+
+    # Parse the extracted keywords
+    keywords = json.loads(queryKeywords)
+    if not any(keywords.values()):  # Check if all lists are empty
+        return ("I am sorry but I cannot respond to this query. I can help you find out a solution"
+                " for your error if you provide me with either the service name, error type, correlation_id or endpoint.")
+
     splunk_keywords = extract_matching_logs_from_splunk(queryKeywords)
     logging.info('Extracted Splunk Keywords:  %s', splunk_keywords)
     confluence_snippets = query_confluence_for_keywords(splunk_keywords)
