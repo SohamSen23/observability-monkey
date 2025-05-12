@@ -32,6 +32,7 @@ with open("config/config.yaml", "r") as f:
 CONFLUENCE_BASE_URL = config.get("confluence_url", "https://default-confluence-url.com")
 CONFLUENCE_EMAIL = config.get("confluence_email", "default-email@example.com")
 SPLUNK_URL = config.get("splunk_url", "https://localhost:8089/services/search/jobs")
+SPLUNK_DOMAIN = config.get("splunk_domain", "https://localhost:8000")
 
 # Set up environment variables
 load_dotenv()
@@ -48,11 +49,13 @@ if not confluence_token:
 
 client = OpenAI(api_key=api_key)
 
+
 def setup_splunk_session():
     session = requests.Session()
     session.auth = (SPLUNK_USERNAME, SPLUNK_PASSWORD)
     session.verify = False
     return session
+
 
 def wait_for_splunk_job(session, search_url, sid):
     while True:
@@ -63,15 +66,16 @@ def wait_for_splunk_job(session, search_url, sid):
             break
         time.sleep(1)
 
+
 def extract_matching_logs_from_splunk(queryKeywords):
     if isinstance(queryKeywords, str):
         queryKeywords = json.loads(queryKeywords)
 
     search_terms = (
-        queryKeywords.get("services", [])
-        + queryKeywords.get("errors", [])
-        + queryKeywords.get("correlation_id", [])
-        + queryKeywords.get("endpoints", [])
+            queryKeywords.get("services", [])
+            + queryKeywords.get("errors", [])
+            + queryKeywords.get("correlation_id", [])
+            + queryKeywords.get("endpoints", [])
     )
 
     session = setup_splunk_session()
@@ -99,20 +103,23 @@ def extract_matching_logs_from_splunk(queryKeywords):
         extracted_fields = []
         for line in matching_logs:
             fields = {}
-            fields["service"] = re.search(r'service=(\w+)', line).group(1) if re.search(r'service=(\w+)', line) else None
-            fields["error_code"] = re.search(r'error_code=(\w+)', line).group(1) if re.search(r'error_code=(\w+)', line) else None
+            fields["service"] = re.search(r'service=(\w+)', line).group(1) if re.search(r'service=(\w+)',
+                                                                                        line) else None
+            fields["error_code"] = re.search(r'error_code=(\w+)', line).group(1) if re.search(r'error_code=(\w+)',
+                                                                                              line) else None
             extracted_fields.append(fields)
 
-        return extracted_fields
-
+        return extracted_fields, sid
     except requests.exceptions.RequestException as e:
         logging.error(f"Error querying Splunk: {e}")
-        return []
+        return [], None
+
 
 def query_confluence_for_keywords(keywords):
     headers = {"Accept": "application/json"}
     auth = (CONFLUENCE_EMAIL, confluence_token)
     context_snippets = []
+    confluence_urls = []
 
     for keyword in keywords:
         url = f"{CONFLUENCE_BASE_URL}/content/search?cql=text~\"{keyword}\"&expand=body.storage"
@@ -124,13 +131,26 @@ def query_confluence_for_keywords(keywords):
                 title = page.get("title", "")
                 body_html = page.get("body", {}).get("storage", {}).get("value", "")
                 snippet = re.sub('<[^<]+?>', '', body_html).strip().replace("\n", " ")[:1000]
+
+                base_url = page.get("_links", {}).get("base", CONFLUENCE_BASE_URL)
+                if base_url.endswith("/rest/api"):
+                    base_url = base_url[:-9]  # Remove "/rest/api" from the end
+                web_path = page.get("_links", {}).get("webui", "")
+                logging.info("base_url: %s", base_url)
+                logging.info("web_path: %s", web_path)
+                readable_url = f"{base_url}{web_path}"
+
                 context_snippets.append(f"{title}: {snippet}")
+                confluence_urls.append(f"{title}: {readable_url}")
         else:
             logging.error(f"Error: Received status code {response.status_code} with response: {response.text}")
 
-    return context_snippets
+    return context_snippets, confluence_urls
 
-def generate_response(user_prompt, confluence_snippets):
+
+def generate_response(user_prompt, confluence_snippets, splunk_search_url=None, confluence_doc_urls=None):
+    confluence_links_text = "\n".join(confluence_doc_urls) if confluence_doc_urls else "No Confluence links available."
+    splunk_link_text = splunk_search_url if splunk_search_url else "No Splunk link available."
     prompt_template = """
 You are a helpful assistant that uses Confluence data to answer user questions.
 
@@ -144,10 +164,20 @@ Based on the provided documentation context, identify relevant information that 
 Present these steps in a simple and easy-to-follow manner, suitable for someone without technical expertise.
 Ensure you share all steps mentioned in the Confluence snippets.
 If no relevant information is found, respond with "I don't know" or "No relevant information available."
+Never ask the user to wait as you are fetching more information.
+
+Only if you find relevant information and do not respond with "I don't know" or "No relevant information available", include the following links:
+
+Useful Links:
+Splunk Logs: {splunk_link_text}
+Confluence Pages: 
+{confluence_links_text}
 """
     prompt = prompt_template.format(
         confluence_snippets="\n".join(confluence_snippets),
-        user_prompt=user_prompt
+        user_prompt=user_prompt,
+        splunk_link_text=splunk_link_text,
+        confluence_links_text=confluence_links_text
     )
 
     response = client.chat.completions.create(
@@ -158,6 +188,7 @@ If no relevant information is found, respond with "I don't know" or "No relevant
         ]
     )
     return response.choices[0].message.content
+
 
 def extract_keywords_with_llm(user_query):
     prompt = f"""
@@ -187,6 +218,7 @@ User query: "{user_query}"
     )
     return response.choices[0].message.content
 
+
 def process_user_query(user_query):
     queryKeywords = extract_keywords_with_llm(user_query)
     logging.info('Extracted Query Keywords:  %s', queryKeywords)
@@ -197,11 +229,19 @@ def process_user_query(user_query):
         return ("I am sorry but I cannot respond to this query. I can help you find out a solution"
                 " for your error if you provide me with either the service name, error type, correlation_id or endpoint.")
 
-    splunk_keywords = extract_matching_logs_from_splunk(queryKeywords)
+    splunk_keywords, sid = extract_matching_logs_from_splunk(queryKeywords)
     logging.info('Extracted Splunk Keywords:  %s', splunk_keywords)
-    confluence_snippets = query_confluence_for_keywords(splunk_keywords)
+    confluence_snippets, confluence_doc_urls = query_confluence_for_keywords(splunk_keywords)
     logging.info('Confluence Snippets:  %s', confluence_snippets)
-    return generate_response(user_query, confluence_snippets)
+    splunk_search_url = f"{SPLUNK_DOMAIN}/app/search/search?sid={sid}" if sid else None
+
+    return generate_response(
+        user_query,
+        confluence_snippets,
+        splunk_search_url=splunk_search_url,
+        confluence_doc_urls=confluence_doc_urls
+    )
+
 
 def main():
     if len(sys.argv) > 1:
@@ -212,6 +252,7 @@ def main():
         user_query = input("Enter your question: ")
         response = process_user_query(user_query)
         return response
+
 
 if __name__ == "__main__":
     result = main()

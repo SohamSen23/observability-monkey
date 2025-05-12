@@ -1,4 +1,5 @@
 splunk_url: "https://localhost:8089/services/search/jobs"
+splunk_domain: "http://localhost:8000"
 confluence_url: "https://observability-monkey.atlassian.net/wiki/rest/api"
 confluence_email: "soham.sen@thoughtworks.com"
 llm_model: "gpt-3.5-turbo"
