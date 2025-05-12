@@ -40,3 +40,6 @@ Thumbs.db
 *.yaml.local
 *.json.local
 ```
+
+# Playwright
+test/output.json
