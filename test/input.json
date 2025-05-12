@@ -1,0 +1,23 @@
+{
+    "questions": [
+        "Error Resolution Guide: JSON_SYNTAX_ERROR in Parser Service",
+        "Error Resolution Guide: MISSING_REQUIRED_FIELD in Parser Service",
+        "Error Resolution Guide: DB_CONNECTION_TIMEOUT in Parser Service",
+        "Error Resolution Guide: FILE_NOT_FOUND in Parser Service",
+        "Error Resolution Guide: UNSUPPORTED_FILE_FORMAT in Parser Service",
+        "Warning Resolution Guide: DEPRECATED_FIELD_USED in Parser Service",
+        "Warning Resolution Guide: SLOW_PARSE_WARNING in Parser Service",
+        "Warning Resolution Guide: RETRYING_DB_CONNECTION in Parser Service",
+        "Warning Resolution Guide: FIELD_TRUNCATED in Parser Service",
+        "Warning Resolution Guide: SKIPPED_EMPTY_LINE in Parser Service",
+        "Warning Resolution Guide: IGNORED_UNKNOWN_FIELD in Parser Service",
+        "Warning Resolution Guide: INCONSISTENT_DATE_FORMAT in Parser Service",
+        "Warning Resolution Guide: PARTIAL_DATA_LOADED in Parser Service",
+        "Warning Resolution Guide: RETRY_QUEUE_LIMIT_APPROACHING in Parser Service",
+        "Warning Resolution Guide: ENV_MISMATCH_WARNING in Parser Service",
+        "Error Resolution Guide: FILE_FETCH_TIMEOUT in Parser Service",
+        "Warning Resolution Guide: UNEXPECTED_COLUMN_WARNING in Mandate Service",
+        "Error Resolution Guide: XML_SYNTAX_ERROR in Mandate Service",
+        "Error Resolution Guide: UNIQUE_MANDATE_ID_VIOLATION in Mandate Service"
+    ]
+}
