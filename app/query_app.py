@@ -19,6 +19,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+# Suppress logs from external libraries
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
 
 # Load configuration
 with open("config/config.yaml", "r") as f:
@@ -76,7 +80,7 @@ def extract_matching_logs_from_splunk(queryKeywords):
 
     try:
         search_query = f'search sourcetype="splunk_logs" ({" AND ".join(search_terms)}) level=ERROR | sort -_time | head 1'
-        logging.info('Splunk Search Query:', search_query)
+        logging.info('Splunk Search Query: %s', search_query)
         search_params = {"search": search_query, "output_mode": "json", "exec_mode": "normal"}
         job_response = session.post(search_url, data=search_params)
         job_response.raise_for_status()
@@ -185,11 +189,11 @@ User query: "{user_query}"
 
 def process_user_query(user_query):
     queryKeywords = extract_keywords_with_llm(user_query)
-    logging.info('Extracted Query Keywords:', queryKeywords)
+    logging.info('Extracted Query Keywords:  %s', queryKeywords)
     splunk_keywords = extract_matching_logs_from_splunk(queryKeywords)
-    logging.info('Extracted Splunk Keywords:', splunk_keywords)
+    logging.info('Extracted Splunk Keywords:  %s', splunk_keywords)
     confluence_snippets = query_confluence_for_keywords(splunk_keywords)
-    logging.info('Confluence Snippets:', confluence_snippets)
+    logging.info('Confluence Snippets:  %s', confluence_snippets)
     return generate_response(user_query, confluence_snippets)
 
 def main():
