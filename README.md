@@ -71,7 +71,7 @@ brew install docker-compose
 ```bash
 brew install --cask google-cloud-sdk
 ```
-#### 2. Use your TW mail id to authenticate:
+#### 2. Use your mail id to authenticate:
 ```bash
 gcloud auth application-default login
 ```
