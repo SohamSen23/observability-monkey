@@ -1,6 +1,6 @@
 # observability-monkey
 
-This is a lightweight RAG-based assistant for real-time monitoring systems.  
+This is a lightweight RAG-based assistant for real-time monitoring systems that I built as part of a hackathon project at Thoughtworks.
 It fetches information from Splunk logs and Confluence documents to answer user queries.
 
 ## Features
@@ -67,7 +67,7 @@ brew install docker-compose
 ```
 
 ### 5. Environment Variables
-#### 1. Install Google Cloud SDK (Needed for fetching API keys)
+#### 1. Install Google Cloud SDK (Needed for fetching API keys, you can skip this step if you have your keys stored in .env file) 
 ```bash
 brew install --cask google-cloud-sdk
 ```
